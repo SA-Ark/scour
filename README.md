@@ -70,14 +70,14 @@ Intel i7-13700H. Reproducible: the workload is seeded.
 
 | Operation | Result |
 |---|---|
-| HNSW build (20K × 384-dim, ef_construction=200) | ~46 s (≈ 430 inserts/s) |
-| HNSW search, k=10 | **~1.0 ms/query** |
+| HNSW build (20K × 384-dim, ef_construction=200) | ~45 s (≈ 447 inserts/s) |
+| HNSW search, k=10 | **~0.9 ms/query** |
 | HNSW recall@10 vs exact scan | **≥ 90%** (enforced by a unit test, not just claimed) |
-| BM25 build (~100-word docs) | ≈ 20,000 docs/s |
-| BM25 search, selective terms (typical) | **70 µs/query** |
-| BM25 search, dense terms (worst case: every query term in ~half the corpus) | 10.4 ms/query |
+| BM25 build (~100-word docs) | ≈ 22,000 docs/s |
+| BM25 search, selective terms (typical) | **106 µs/query** |
+| BM25 search, dense terms (worst case: every query term in ~half the corpus) | 10.5 ms/query |
 | Hybrid (BM25 + HNSW + RRF), k=10 | dominated by the legs above |
-| Chunking | ≈ 460 MB/s |
+| Chunking | ≈ 497 MB/s |
 
 Worst-case BM25 numbers are listed deliberately: posting-list density is the cost driver, and a benchmark
 that hides the dense case isn't a benchmark.

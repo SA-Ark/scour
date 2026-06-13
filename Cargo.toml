@@ -1,5 +1,5 @@
 [package]
-name = "scour"
+name = "scour-search"
 version = "0.1.0"
 edition = "2021"
 description = "Embeddable hybrid search primitives: BM25 with Porter stemming, an HNSW vector index, reciprocal-rank fusion, and UTF-8-safe text chunking. Zero dependencies."
@@ -7,6 +7,10 @@ license = "MIT"
 repository = "https://github.com/SA-Ark/scour"
 keywords = ["search", "bm25", "hnsw", "vector", "rag"]
 categories = ["text-processing", "algorithms", "data-structures"]
+readme = "README.md"
+
+[lib]
+name = "scour"
 
 [dependencies]
 # none — and that's the point
