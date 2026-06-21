@@ -134,7 +134,11 @@ fn handle(mut stream: TcpStream, state: Arc<AppState>) {
             let json = search_json(&state, &q, k);
             http_response("200 OK", "application/json; charset=utf-8", json.as_bytes())
         }
-        _ => http_response("404 Not Found", "application/json", b"{\"error\":\"not found\"}"),
+        _ => http_response(
+            "404 Not Found",
+            "application/json",
+            b"{\"error\":\"not found\"}",
+        ),
     };
 
     let _ = stream.write_all(&response);
@@ -171,10 +175,16 @@ fn search_json(state: &AppState, raw_q: &str, k: usize) -> String {
 
     // Rank lookups so the fused lane can show *why* a doc ranked (which legs
     // contributed and at what rank).
-    let lex_rank: HashMap<&str, usize> =
-        lex_ids.iter().enumerate().map(|(i, id)| (id.as_str(), i + 1)).collect();
-    let sem_rank: HashMap<&str, usize> =
-        sem_ids.iter().enumerate().map(|(i, id)| (id.as_str(), i + 1)).collect();
+    let lex_rank: HashMap<&str, usize> = lex_ids
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.as_str(), i + 1))
+        .collect();
+    let sem_rank: HashMap<&str, usize> = sem_ids
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.as_str(), i + 1))
+        .collect();
 
     let mut out = String::with_capacity(4096);
     out.push('{');
