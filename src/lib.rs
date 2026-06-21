@@ -34,12 +34,15 @@
 
 pub mod bm25;
 pub mod chunk;
+pub mod corpus;
+pub mod embed;
 pub mod fuse;
 pub mod hnsw;
 pub mod text;
 
 pub use bm25::Bm25Index;
 pub use chunk::{chunk_text, chunk_text_with_overlap};
+pub use embed::{embed, DEMO_DIM};
 pub use fuse::{rrf_fuse, rrf_fuse_scored, DEFAULT_RRF_K};
 pub use hnsw::{cosine_distance, HnswIndex, HnswParams};
 
