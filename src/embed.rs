@@ -133,7 +133,10 @@ mod tests {
 
     #[test]
     fn deterministic() {
-        assert_eq!(embed("rust memory safety", DEMO_DIM), embed("rust memory safety", DEMO_DIM));
+        assert_eq!(
+            embed("rust memory safety", DEMO_DIM),
+            embed("rust memory safety", DEMO_DIM)
+        );
     }
 
     #[test]
