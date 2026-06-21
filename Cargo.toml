@@ -12,6 +12,13 @@ readme = "README.md"
 [lib]
 name = "scour"
 
+# Live demo server (zero-dependency, std-only): indexes the seeded corpus and
+# serves BM25 / vector / RRF-fused lanes plus the single-page UI.
+#   cargo run --release --bin scour-demo
+[[bin]]
+name = "scour-demo"
+path = "src/bin/serve.rs"
+
 [dependencies]
 # none — and that's the point
 
