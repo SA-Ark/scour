@@ -1,0 +1,51 @@
+# Deploy manifest for the Scour live demo (portfolio).
+#
+# Single self-contained Rust binary: indexes the seeded corpus at startup and
+# serves the BM25 / vector / RRF-fused lanes plus the single-page UI (the HTML
+# is embedded in the binary via include_str!). Zero runtime dependencies — no
+# database, no model server, no sidecar. Same `ark deploy` + binary + CF-tunnel
+# pattern as ark-launch-board.
+
+[service]
+name = "scour"
+description = "Scour live demo (scour.chakrakali.com) — recruiter-testable hybrid search: BM25 + HNSW vector + RRF fusion over a seeded corpus, side-by-side lanes. Zero-dependency Rust."
+repo_dir = "~/claude-test/scour"
+remote = "origin"
+branch = "main"
+
+[deploy]
+deploy_target = "vps"
+deploy_mode = "binary"
+host_port = 3942
+binary_name = "scour-demo"
+build_cmd = "cargo build --release --bin scour-demo"
+build_dir = "~/claude-test/scour"
+vps_path = "/opt/ark/scour/"
+systemd_unit = "scour"
+build_local = true
+frontend_type = "none"          # UI is embedded in the binary (include_str!)
+tunnel_routed = true
+expected_tunnel_id = "670705eb-f7d4-47a5-bcd6-ec2c22bf4b77"
+public_url = "https://scour.chakrakali.com"
+
+[health]
+path = "/health"
+port = 3942
+
+[alerting]
+required = false
+
+[rollback]
+keep_versions = 5
+
+[wiring]
+depends_on = []                 # genuinely standalone — no proxy, no DB, no embed service
+depended_by = []
+
+# The server binds 0.0.0.0:$PORT. No secrets, no external services: the corpus
+# is compiled in and embeddings are computed in-process.
+[env.vps]
+PORT = "3942"
+RUST_LOG = "scour=info"
+OTEL_SERVICE_NAME = "scour"
+PRAHARI_BASE_URL = "http://127.0.0.1:4318"
