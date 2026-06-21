@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scour — hybrid search demo</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3240;
+    --text: #e6edf3;
+    --muted: #9aa7b6;
+    --lex: #58a6ff;
+    --sem: #bc8cff;
+    --fuse: #3fb950;
+    --accent: #f0883e;
+    --shadow: 0 6px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 70% -10%, #16203099, transparent),
+                var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+  header h1 {
+    font-size: 34px; margin: 0 0 6px; letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo {
+    display: inline-grid; place-items: center;
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--lex), var(--sem));
+    color: #0d1117; font-weight: 800; font-size: 22px;
+  }
+  header p.tag { color: var(--muted); font-size: 18px; margin: 0 0 4px; max-width: 760px; }
+  header p.sub { color: var(--muted); font-size: 15px; margin: 4px 0 0; }
+  header a { color: var(--lex); text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+
+  .searchbar { display: flex; gap: 10px; margin: 26px 0 14px; }
+  #q {
+    flex: 1; font-size: 18px; padding: 14px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px; outline: none;
+  }
+  #q:focus { border-color: var(--lex); box-shadow: 0 0 0 3px #58a6ff33; }
+  button.go {
+    font-size: 17px; font-weight: 600; padding: 0 24px;
+    background: var(--lex); color: #0d1117; border: 0; border-radius: 12px; cursor: pointer;
+  }
+  button.go:hover { filter: brightness(1.08); }
+  button.go:disabled { opacity: 0.6; cursor: default; }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .examples .lbl { color: var(--muted); font-size: 15px; align-self: center; margin-right: 4px; }
+  .chip {
+    font-size: 15px; padding: 6px 12px; border-radius: 999px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); cursor: pointer;
+  }
+  .chip:hover { border-color: var(--lex); color: var(--lex); }
+
+  .meta { color: var(--muted); font-size: 15px; min-height: 20px; margin: 10px 2px 18px; }
+
+  .lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 920px) { .lanes { grid-template-columns: 1fr; } }
+
+  .lane {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+  }
+  .lane h2 {
+    font-size: 17px; margin: 0; padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .lane.lex h2 .dot { background: var(--lex); }
+  .lane.sem h2 .dot { background: var(--sem); }
+  .lane.fuse h2 .dot { background: var(--fuse); }
+  .lane h2 .what { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: auto; }
+
+  .lane .blurb { font-size: 14px; color: var(--muted); padding: 10px 16px; border-bottom: 1px solid var(--border); }
+
+  .results { list-style: none; margin: 0; padding: 8px; overflow-y: auto; min-height: 120px; }
+  .result {
+    padding: 11px 12px; border-radius: 10px; margin-bottom: 6px;
+    background: var(--panel-2); border: 1px solid transparent;
+  }
+  .result:hover { border-color: var(--border); }
+  .result .top { display: flex; align-items: baseline; gap: 8px; }
+  .result .rank { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 15px; width: 22px; flex: none; }
+  .result .title { font-weight: 600; font-size: 16px; }
+  .result .score {
+    margin-left: auto; font-size: 14px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .result .body { font-size: 15px; color: var(--muted); margin: 6px 0 0 30px; }
+  .result .prov { margin: 8px 0 0 30px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 14px; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .badge.lex { color: var(--lex); border-color: #58a6ff66; }
+  .badge.sem { color: var(--sem); border-color: #bc8cff66; }
+  .badge.both { color: var(--fuse); border-color: #3fb95066; font-weight: 600; }
+  .empty { color: var(--muted); font-size: 15px; padding: 18px 14px; }
+
+  footer { color: var(--muted); font-size: 14px; margin-top: 30px; line-height: 1.7; }
+  footer code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="logo">S</span> Scour</h1>
+    <p class="tag">Embeddable hybrid-search primitives in <strong>zero-dependency Rust</strong> —
+       BM25 keyword search, an HNSW vector index, and reciprocal-rank fusion. Type a query and watch
+       all three lanes rank the same corpus, so you can see <em>why hybrid wins</em>.</p>
+    <p class="sub">Live, in-process, no model server: the vector lane uses a deterministic
+       feature-hash embedding computed in pure&nbsp;Rust. &nbsp;·&nbsp;
+       <a href="https://github.com/SA-Ark/scour" target="_blank" rel="noopener">Source on GitHub</a></p>
+  </header>
+
+  <div class="searchbar">
+    <input id="q" type="text" placeholder="Search the corpus — e.g. how does rust prevent memory bugs"
+           autocomplete="off" spellcheck="false" aria-label="Search query">
+    <button id="go" class="go">Search</button>
+  </div>
+
+  <div class="examples" id="examples"><span class="lbl">Try:</span></div>
+
+  <div class="meta" id="meta"></div>
+
+  <div class="lanes">
+    <section class="lane lex">
+      <h2><span class="dot"></span>BM25 keyword <span class="what">exact term match</span></h2>
+      <div class="blurb">Inverted index + Okapi BM25. Precise when your words match the document's
+        words — brittle when they don't.</div>
+      <ul class="results" id="lane-lexical"><li class="empty">Run a search to see results.</li></ul>
+    </section>
+
+    <section class="lane sem">
+      <h2><span class="dot"></span>Vector (HNSW) <span class="what">meaning match</span></h2>
+      <div class="blurb">Approximate nearest neighbors over embeddings, cosine distance. Recovers
+        paraphrases and synonyms the keyword lane misses.</div>
+      <ul class="results" id="lane-semantic"><li class="empty">Run a search to see results.</li></ul>
+    </section>
+
+    <section class="lane fuse">
+      <h2><span class="dot"></span>Hybrid (RRF) <span class="what">best of both</span></h2>
+      <div class="blurb">Reciprocal-rank fusion merges the two rankings with no score calibration.
+        Badges show which legs found each hit.</div>
+      <ul class="results" id="lane-fused"><li class="empty">Run a search to see results.</li></ul>
+    </section>
+  </div>
+
+  <footer>
+    <strong>How to read this:</strong> the same query runs through three independent retrievers.
+    BM25 ranks by keyword overlap; the vector lane ranks by embedding similarity; the hybrid lane
+    fuses both with RRF (<code>1 / (k + rank)</code>, k=60). Watch a query like
+    <em>“light from the early universe”</em> — the keyword lane struggles, the vector lane finds the
+    astronomy docs, and the hybrid lane keeps the win. &nbsp;·&nbsp; All retrieval is pure
+    <code>std</code> Rust, indexed in-process at startup.
+  </footer>
+</div>
+
+<script>
+// Built entirely with safe DOM methods (createElement / textContent) — no
+// innerHTML on dynamic data, so document text cannot inject markup.
+const $ = (id) => document.getElementById(id);
+const laneEls = { lexical: $("lane-lexical"), semantic: $("lane-semantic"), fused: $("lane-fused") };
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function resultRow(it, i, withProv) {
+  const li = el("li", "result");
+  const top = el("div", "top");
+  top.appendChild(el("span", "rank", (i + 1) + "."));
+  top.appendChild(el("span", "title", it.title));
+  top.appendChild(el("span", "score", Number(it.score).toFixed(4)));
+  li.appendChild(top);
+  li.appendChild(el("div", "body", it.body));
+
+  if (withProv && it.from) {
+    const l = it.from.lexical, s = it.from.semantic;
+    const prov = el("div", "prov");
+    if (l != null && s != null) prov.appendChild(el("span", "badge both", `both · L#${l} V#${s}`));
+    else if (l != null) prov.appendChild(el("span", "badge lex", `keyword #${l}`));
+    else if (s != null) prov.appendChild(el("span", "badge sem", `vector #${s}`));
+    li.appendChild(prov);
+  }
+  return li;
+}
+
+function renderLane(target, items, withProv) {
+  target.replaceChildren();
+  if (!items || items.length === 0) {
+    target.appendChild(el("li", "empty", "No matches in this lane."));
+    return;
+  }
+  items.forEach((it, i) => target.appendChild(resultRow(it, i, withProv)));
+}
+
+let inflight = null;
+async function runSearch(q) {
+  q = (q || "").trim();
+  if (!q) return;
+  $("q").value = q;
+  $("meta").textContent = "Searching…";
+  $("go").disabled = true;
+  try {
+    if (inflight) inflight.abort();
+    inflight = new AbortController();
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&k=8`, { signal: inflight.signal });
+    const data = await r.json();
+    renderLane(laneEls.lexical, data.lexical, false);
+    renderLane(laneEls.semantic, data.semantic, false);
+    renderLane(laneEls.fused, data.fused, true);
+    $("meta").textContent =
+      `Query “${data.query}” over ${data.count} documents · top ${data.k} per lane`;
+  } catch (e) {
+    if (e.name !== "AbortError") $("meta").textContent = "Search failed: " + e.message;
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+$("go").addEventListener("click", () => runSearch($("q").value));
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch($("q").value); });
+
+(async function init() {
+  try {
+    const r = await fetch("/api/examples");
+    const { examples } = await r.json();
+    const box = $("examples");
+    examples.forEach(ex => {
+      const c = el("button", "chip", ex);
+      c.type = "button";
+      c.addEventListener("click", () => runSearch(ex));
+      box.appendChild(c);
+    });
+    if (examples.length) runSearch(examples[0]);
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>
