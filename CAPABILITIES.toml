@@ -1,0 +1,48 @@
+# Scour Capability Registry
+# Machine-readable. Updated: 2026-06-21
+
+[service]
+tier = 3
+name = "scour"
+type = "api-service"
+repo = "SA-Ark/scour"
+external = true
+description = "Scour live demo (portfolio) — recruiter-testable hybrid search: BM25 keyword + HNSW vector + RRF fusion over a seeded corpus, ranked side by side with per-hit provenance. Single zero-dependency Rust binary; pure-std HTTP server; UI embedded via include_str!; pure-Rust feature-hash embeddings (no model, no DB, no SaaS)."
+
+[backend]
+binary = "scour-demo"
+version = "0.1.0"
+port = 3942
+health_endpoint = "/health"
+base_url = "http://127.0.0.1:3942"
+public_url = "https://scour.chakrakali.com"
+
+[[capabilities]]
+name = "bm25-keyword-search"
+description = "Okapi BM25 over an in-memory inverted index with Porter stemming and stopword removal; deterministic tie-breaks"
+files = ["src/bm25.rs", "src/text.rs"]
+wired = true
+
+[[capabilities]]
+name = "hnsw-vector-search"
+description = "Pure-Rust HNSW approximate nearest neighbor index, cosine distance, soft deletes, deterministic construction"
+files = ["src/hnsw.rs"]
+wired = true
+
+[[capabilities]]
+name = "rrf-fusion"
+description = "Reciprocal-rank fusion merging the lexical and semantic rankings without score normalization"
+files = ["src/fuse.rs"]
+wired = true
+
+[[capabilities]]
+name = "model-free-embeddings"
+description = "Deterministic pure-std feature-hashing text embedder (token unigrams/bigrams + char-trigram assist) so the vector lane works on arbitrary queries with no model server"
+files = ["src/embed.rs"]
+wired = true
+
+[[capabilities]]
+name = "live-demo-server"
+description = "Zero-dependency std HTTP server: GET /api/search (three lanes + provenance), /api/examples, /health, and the embedded single-page UI; graceful SIGTERM/SIGINT shutdown"
+files = ["src/bin/serve.rs", "assets/index.html"]
+wired = true
