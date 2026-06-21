@@ -7,20 +7,55 @@
 //! framework, no async runtime, no template engine — same zero-dependency
 //! discipline as the library it demonstrates.
 //!
-//! Run: `cargo run --release --bin serve` then open http://127.0.0.1:8087
+//! Run: `cargo run --release --bin scour-demo` then open http://127.0.0.1:8087
 //! Override the bind address with `SCOUR_ADDR` (e.g. `0.0.0.0:8087`).
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use scour::corpus::{Doc, CORPUS, EXAMPLE_QUERIES};
 use scour::{embed, Bm25Index, HnswIndex, DEFAULT_RRF_K, DEMO_DIM};
 
 const UI_HTML: &str = include_str!("../../assets/index.html");
+
+/// Set true when a termination signal (SIGTERM / SIGINT) arrives, so the
+/// accept loop can exit cleanly and the worker pool can drain in-flight
+/// requests instead of being killed mid-response.
+static SHUTDOWN: AtomicBool = AtomicBool::new(false);
+
+// Graceful, signal-aware lifecycle with **zero dependencies**: we register a
+// handler for SIGTERM/SIGINT against the libc `signal` symbol already linked
+// into every Rust binary (no `tokio::signal`, no `signal-hook` crate — that
+// would betray the crate's zero-dependency identity). The handler does only
+// async-signal-safe work: flip an atomic flag.
+mod lifecycle {
+    use super::{Ordering, SHUTDOWN};
+
+    const SIGINT: i32 = 2;
+    const SIGTERM: i32 = 15;
+
+    extern "C" {
+        fn signal(signum: i32, handler: extern "C" fn(i32)) -> usize;
+    }
+
+    extern "C" fn on_signal(_sig: i32) {
+        SHUTDOWN.store(true, Ordering::SeqCst);
+    }
+
+    /// Install the SIGTERM/SIGINT handlers (idempotent, safe to call once).
+    pub fn install() {
+        unsafe {
+            signal(SIGINT, on_signal);
+            signal(SIGTERM, on_signal);
+        }
+    }
+}
 
 /// Everything the request handlers need, built once at startup.
 struct AppState {
@@ -70,16 +105,34 @@ fn main() {
         std::process::exit(1);
     });
 
+    // Graceful, signal-aware lifecycle: install SIGTERM/SIGINT handlers, then
+    // accept with a short timeout so the loop can notice a shutdown request and
+    // stop accepting new connections.
+    lifecycle::install();
+    listener
+        .set_nonblocking(true)
+        .expect("set_nonblocking failed");
+
     let pool = ThreadPool::new(8);
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
+    while !SHUTDOWN.load(Ordering::SeqCst) {
+        match listener.accept() {
+            Ok((stream, _peer)) => {
+                let _ = stream.set_nonblocking(false);
                 let state = Arc::clone(&state);
                 pool.execute(move || handle(stream, state));
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // No pending connection; nap briefly, then re-check the flag.
+                thread::sleep(Duration::from_millis(100));
             }
             Err(e) => eprintln!("connection error: {e}"),
         }
     }
+
+    // Shutdown requested: stop the pool and let in-flight workers drain.
+    eprintln!("scour demo: shutdown signal received, draining workers…");
+    drop(pool);
+    eprintln!("scour demo: clean exit");
 }
 
 fn handle(mut stream: TcpStream, state: Arc<AppState>) {
@@ -374,16 +427,18 @@ fn json_str(s: &str) -> String {
 // ---------------------------------------------------------------------------
 
 struct ThreadPool {
-    sender: mpsc::Sender<Box<dyn FnOnce() + Send + 'static>>,
+    sender: Option<mpsc::Sender<Box<dyn FnOnce() + Send + 'static>>>,
+    workers: Vec<thread::JoinHandle<()>>,
 }
 
 impl ThreadPool {
     fn new(size: usize) -> Self {
         let (sender, receiver) = mpsc::channel::<Box<dyn FnOnce() + Send + 'static>>();
         let receiver = Arc::new(Mutex::new(receiver));
+        let mut workers = Vec::with_capacity(size.max(1));
         for _ in 0..size.max(1) {
             let receiver: Arc<Mutex<Receiver<_>>> = Arc::clone(&receiver);
-            thread::spawn(move || loop {
+            workers.push(thread::spawn(move || loop {
                 let job = {
                     let guard = match receiver.lock() {
                         Ok(g) => g,
@@ -393,14 +448,30 @@ impl ThreadPool {
                 };
                 match job {
                     Ok(job) => job(),
-                    Err(_) => break,
+                    Err(_) => break, // channel closed → drain done, exit.
                 }
-            });
+            }));
         }
-        ThreadPool { sender }
+        ThreadPool {
+            sender: Some(sender),
+            workers,
+        }
     }
 
     fn execute<F: FnOnce() + Send + 'static>(&self, f: F) {
-        let _ = self.sender.send(Box::new(f));
+        if let Some(sender) = &self.sender {
+            let _ = sender.send(Box::new(f));
+        }
+    }
+}
+
+impl Drop for ThreadPool {
+    /// Graceful drain: close the queue so workers finish their current job and
+    /// the backlog, then join every worker before returning.
+    fn drop(&mut self) {
+        self.sender.take(); // close the channel → workers exit when queue empties
+        for worker in self.workers.drain(..) {
+            let _ = worker.join();
+        }
     }
 }
