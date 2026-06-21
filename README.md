@@ -12,6 +12,39 @@ Scour is the in-process retrieval core extracted from a production semantic-memo
 no dependency tree at all — embed it in a CLI, a server, a WASM target, or a test harness without dragging
 in tokio, an ANN library, and a tokenizer framework.
 
+## ▶ Live demo — try it yourself
+
+**[scour.chakrakali.com](https://scour.chakrakali.com)** — type a query and watch the **same corpus**
+ranked three ways, side by side:
+
+| Lane | What it does | Where it shines |
+|---|---|---|
+| **BM25 keyword** | Okapi BM25 over an inverted index | Exact-vocabulary matches — precise, but brittle to wording |
+| **Vector (HNSW)** | Approximate nearest neighbors, cosine distance | Paraphrases & synonyms the keyword lane misses |
+| **Hybrid (RRF)** | Reciprocal-rank fusion of both | The safe default — recovers the best of both legs |
+
+The hybrid lane shows **provenance badges** (`both · L#2 V#1`, `vector #2`) so you can see *which* leg
+found each hit and at what rank — i.e. exactly *why hybrid wins*. Try the one-click example queries, e.g.
+*“spread incoming traffic across machines”* (a paraphrase with little keyword overlap): BM25 leans on the
+one shared word, the vector lane pulls in the distributed-systems neighbours, and RRF promotes the doc
+both legs agree on.
+
+The whole demo is one self-contained binary. It indexes a ~30-document seeded corpus at startup and serves
+the UI and a JSON `/api/search` endpoint — **no database, no model server, no SaaS**. The vector lane's
+embeddings are computed in pure Rust by a deterministic feature-hashing encoder ([`src/embed.rs`](src/embed.rs)),
+because the demo had to stay as dependency-free as the library it shows off.
+
+### Run the demo locally
+
+```bash
+cargo run --release --bin scour-demo      # then open http://127.0.0.1:8087
+# bind elsewhere:  SCOUR_ADDR=0.0.0.0:9000 cargo run --release --bin scour-demo
+```
+
+API: `GET /api/search?q=<query>&k=8` → `{ query, count, lexical[], semantic[], fused[] }`,
+where each `fused[]` item carries a `from: { lexical, semantic }` rank provenance object.
+
+
 ```rust
 use scour::HybridIndex;
 
