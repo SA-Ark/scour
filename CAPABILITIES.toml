@@ -2,7 +2,7 @@
 # Machine-readable. Updated: 2026-06-21
 
 [service]
-tier = 3
+tier = 1
 name = "scour"
 type = "api-service"
 repo = "SA-Ark/scour"
