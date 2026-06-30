@@ -134,7 +134,7 @@ that hides the dense case isn't a benchmark.
 
 ```toml
 [dependencies]
-scour = { git = "https://github.com/SA-Ark/scour" } # crates.io publish pending
+scour-search = { git = "https://github.com/SA-Ark/scour" } # crates.io publish pending
 ```
 
 ```rust
