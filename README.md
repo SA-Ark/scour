@@ -8,7 +8,7 @@
 chunking. Zero dependencies.**
 
 Scour is the in-process retrieval core extracted from a production semantic-memory engine that serves
-68,000+ documents. It gives you the four primitives every RAG / search pipeline needs, in plain Rust with
+180,000+ documents. It gives you the four primitives every RAG / search pipeline needs, in plain Rust with
 no dependency tree at all — embed it in a CLI, a server, a WASM target, or a test harness without dragging
 in tokio, an ANN library, and a tokenizer framework.
 
@@ -165,7 +165,7 @@ cargo run --release --example bench
 
 ## Provenance
 
-Extracted from the retrieval core of a production memory system (68K+ documents, hybrid
+Extracted from the retrieval core of a production memory system (180K+ documents, hybrid
 semantic + keyword recall). Hardened during extraction: the chunker gained UTF-8 code-point safety
 (the original could split a multibyte character), HNSW construction became deterministic per index,
 and every module carries its tests.
