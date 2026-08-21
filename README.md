@@ -4,18 +4,13 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
-**Embeddable hybrid search primitives for Rust — BM25, HNSW, reciprocal-rank fusion, and UTF-8-safe
-chunking. Zero dependencies.**
+**Hybrid search primitives for Rust you can embed anywhere — BM25, HNSW, reciprocal-rank fusion, and UTF-8-safe chunking. Zero dependencies.**
 
-Scour is the in-process retrieval core extracted from a production semantic-memory engine that serves
-180,000+ documents. It gives you the four primitives every RAG / search pipeline needs, in plain Rust with
-no dependency tree at all — embed it in a CLI, a server, a WASM target, or a test harness without dragging
-in tokio, an ANN library, and a tokenizer framework.
+Scour is the in-process retrieval core pulled out of a production semantic-memory engine that serves 180,000+ documents. It gives you the four primitives every RAG or search pipeline ends up needing, in plain Rust with no dependency tree at all. Drop it into a CLI, a server, a WASM target, or a test harness without dragging in tokio, an ANN library, and a tokenizer framework to get four functions.
 
 ## ▶ Live demo — try it yourself
 
-**[scour.chakrakali.com](https://scour.chakrakali.com)** — type a query and watch the **same corpus**
-ranked three ways, side by side:
+**[scour.chakrakali.com](https://scour.chakrakali.com)** — type a query and watch the **same corpus** ranked three ways, side by side:
 
 | Lane | What it does | Where it shines |
 |---|---|---|
@@ -23,16 +18,9 @@ ranked three ways, side by side:
 | **Vector (HNSW)** | Approximate nearest neighbors, cosine distance | Paraphrases & synonyms the keyword lane misses |
 | **Hybrid (RRF)** | Reciprocal-rank fusion of both | The safe default — recovers the best of both legs |
 
-The hybrid lane shows **provenance badges** (`both · L#2 V#1`, `vector #2`) so you can see *which* leg
-found each hit and at what rank — i.e. exactly *why hybrid wins*. Try the one-click example queries, e.g.
-*“spread incoming traffic across machines”* (a paraphrase with little keyword overlap): BM25 leans on the
-one shared word, the vector lane pulls in the distributed-systems neighbours, and RRF promotes the doc
-both legs agree on.
+The hybrid lane tags each hit with a provenance badge (`both · L#2 V#1`, `vector #2`) so you can see which leg found it and at what rank — which is really the whole argument for hybrid, made visible. Try one of the example queries like *"spread incoming traffic across machines"*, a paraphrase with almost no keyword overlap: BM25 leans on the single shared word, the vector lane pulls in the distributed-systems neighbours, and RRF promotes the doc both legs agree on.
 
-The whole demo is one self-contained binary. It indexes a ~30-document seeded corpus at startup and serves
-the UI and a JSON `/api/search` endpoint — **no database, no model server, no SaaS**. The vector lane's
-embeddings are computed in pure Rust by a deterministic feature-hashing encoder ([`src/embed.rs`](src/embed.rs)),
-because the demo had to stay as dependency-free as the library it shows off.
+The whole demo is one self-contained binary. It indexes a ~30-document seeded corpus at startup and serves both the UI and a JSON `/api/search` endpoint — no database, no model server, no SaaS. The vector lane's embeddings come from a deterministic feature-hashing encoder written in pure Rust ([`src/embed.rs`](src/embed.rs)), because the demo had to stay as dependency-free as the library it's showing off.
 
 ### Run the demo locally
 
@@ -98,8 +86,7 @@ let hits = index.search("memory safety in rust", &query_embedding, 10);
 
 ## Benchmarks
 
-`cargo run --release --example bench` — 20,000 docs, 384-dim embeddings, 1,000 queries, single thread,
-Intel i7-13700H. Reproducible: the workload is seeded.
+`cargo run --release --example bench` — 20,000 docs, 384-dim embeddings, 1,000 queries, single thread, Intel i7-13700H. The workload is seeded, so the numbers reproduce.
 
 | Operation | Result |
 |---|---|
@@ -112,23 +99,19 @@ Intel i7-13700H. Reproducible: the workload is seeded.
 | Hybrid (BM25 + HNSW + RRF), k=10 | dominated by the legs above |
 | Chunking | ≈ 497 MB/s |
 
-Worst-case BM25 numbers are listed deliberately: posting-list density is the cost driver, and a benchmark
-that hides the dense case isn't a benchmark.
+The worst-case BM25 row is there on purpose. Posting-list density is what drives the cost, and a benchmark that quietly drops the dense case isn't telling you anything.
 
 ## Design decisions
 
-- **Zero dependencies.** The entire crate is `std`. This is not minimalism theater — it makes the crate
-  auditable in one sitting, portable to WASM, and immune to dependency churn.
-- **Determinism everywhere.** BM25 ties break lexicographically; HNSW level assignment uses a per-index
-  seeded PRNG (same insertion order → same graph → same results); RRF ties break by first appearance.
-  Deterministic retrieval is the difference between a debuggable pipeline and a haunted one.
-- **Soft deletes in HNSW.** Deleting from a navigable small-world graph properly requires re-linking;
-  soft-delete + filter at query time is the production-pragmatic answer, and `insert` revives a deleted
-  id in place.
-- **Bring your own embeddings.** Any `&[f32]` works. Scour deliberately does not pick an embedding model,
-  an HTTP client, or a runtime for you.
-- **Lossless chunking.** `chunk_text(t, n).concat() == t` is a tested invariant — chunkers that silently
-  drop or duplicate bytes corrupt RAG corpora in ways that surface weeks later.
+**Zero dependencies.** The whole crate is `std`. This isn't minimalism for its own sake — it means you can audit the thing in one sitting, compile it to WASM, and never get woken up by someone else's dependency churn.
+
+**Determinism everywhere.** BM25 ties break lexicographically. HNSW level assignment uses a per-index seeded PRNG, so the same insertion order gives you the same graph and the same results. RRF ties break by first appearance. The difference between a debuggable pipeline and a haunted one is whether it does the same thing twice.
+
+**Soft deletes in HNSW.** Really deleting a node from a navigable small-world graph means re-linking its neighbours; the pragmatic answer is to mark it deleted and filter at query time, and `insert` revives a deleted id in place.
+
+**Bring your own embeddings.** Any `&[f32]` works. Scour won't pick an embedding model, an HTTP client, or a runtime for you — that's your call, not the library's.
+
+**Lossless chunking.** `chunk_text(t, n).concat() == t` is a tested invariant. Chunkers that silently drop or duplicate bytes corrupt a RAG corpus in ways you don't notice until weeks later.
 
 ## Quickstart
 
@@ -165,10 +148,7 @@ cargo run --release --example bench
 
 ## Provenance
 
-Extracted from the retrieval core of a production memory system (180K+ documents, hybrid
-semantic + keyword recall). Hardened during extraction: the chunker gained UTF-8 code-point safety
-(the original could split a multibyte character), HNSW construction became deterministic per index,
-and every module carries its tests.
+This came out of the retrieval core of a production memory system — 180K+ documents, hybrid semantic + keyword recall. It got hardened on the way out: the chunker learned UTF-8 code-point safety (the original could split a multibyte character), HNSW construction became deterministic per index, and every module brought its tests along.
 
 ## License
 
