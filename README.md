@@ -117,7 +117,7 @@ The worst-case BM25 row is there on purpose. Posting-list density is what drives
 
 ```toml
 [dependencies]
-scour-search = { git = "https://github.com/SA-Ark/scour" } # crates.io publish pending
+scour-search = "0.1"   # https://crates.io/crates/scour-search
 ```
 
 ```rust
