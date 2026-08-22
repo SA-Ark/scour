@@ -23,6 +23,7 @@ use scour::corpus::{Doc, CORPUS, EXAMPLE_QUERIES};
 use scour::{embed, Bm25Index, HnswIndex, DEFAULT_RRF_K, DEMO_DIM};
 
 const UI_HTML: &str = include_str!("../../assets/index.html");
+const LLMS_TXT: &str = include_str!("../../assets/llms.txt");
 
 /// Set true when a termination signal (SIGTERM / SIGINT) arrives, so the
 /// accept loop can exit cleanly and the worker pool can drain in-flight
@@ -175,6 +176,9 @@ fn handle(mut stream: TcpStream, state: Arc<AppState>) {
             http_response("200 OK", "text/html; charset=utf-8", UI_HTML.as_bytes())
         }
         ("GET", "/health") => http_response("200 OK", "application/json", b"{\"status\":\"ok\"}"),
+        ("GET", "/llms.txt") => {
+            http_response("200 OK", "text/plain; charset=utf-8", LLMS_TXT.as_bytes())
+        }
         ("GET", "/api/examples") => {
             http_response("200 OK", "application/json", examples_json().as_bytes())
         }

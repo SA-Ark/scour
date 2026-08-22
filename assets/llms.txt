@@ -1,0 +1,12 @@
+# Scour — hybrid search demo
+
+> A live demonstration of hybrid search: lexical BM25 and semantic vector retrieval fused with reciprocal rank fusion, showing exactly why each result ranks where it does.
+
+Scour is an interactive demo of production hybrid search. It runs a lexical leg (BM25) and a semantic leg (vector embeddings over an HNSW index) in parallel, then fuses the two rank orders with reciprocal rank fusion (RRF). Each result shows which legs contributed and at what rank, so you can see the retrieval reasoning.
+
+## Key pages
+- [Home](https://scour.chakrakali.com/): run a query and compare lexical, semantic, and fused results side by side
+
+## About
+- Built by: Chakra (Aashapura LLC)
+- Contact: engineering@chakrakali.com
